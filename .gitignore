@@ -1,6 +1,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/jupyternotebooks,pycharm,python,visualstudiocode,linux,windows,macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=jupyternotebooks,pycharm,python,visualstudiocode,linux,windows,macos
 
+# My changes / additions (ignoring project data)
+/project/chocolate-recognition-classic/*
+
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
 # website: http://jupyter.org/
