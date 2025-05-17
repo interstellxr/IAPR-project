@@ -40,6 +40,7 @@ def linear_interpolation(contours: np.ndarray, n_samples: int = 80):
         contours_inter[i, :, 1] = np.interp(t_prime, t, y)
     
     return contours_inter
+
 def sliding_window_compare(image_rgb, reference_histograms, window_size=64, stride=16, method='hist'):
     H, W, _ = image_rgb.shape
     heatmap = np.zeros((H // stride, W // stride))
@@ -63,6 +64,7 @@ def sliding_window_compare(image_rgb, reference_histograms, window_size=64, stri
             heatmap[y // stride, x // stride] = similarity
 
     return heatmap
+
 def sliding_window_classify_and_count(image_rgb, reference_histograms, reference_names, 
                                       window_size=64, stride=16, method='hist',
                                       similarity_threshold=0.7, cluster=False):
@@ -126,6 +128,7 @@ def extract_patches_from_blobs(image_rgb, blobs, stride, window_size):
         patches.append(patch)
 
     return patches
+
 def extract_features(patch, feature_list=None):
     """
     Extract selected features from a BGR patch.
