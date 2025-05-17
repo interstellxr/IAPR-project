@@ -105,7 +105,7 @@ def sliding_window_classify_and_count(image_rgb, reference_histograms, reference
 
     return heatmap, dict(count_dict)
 
-def extract_patches_from_blobs(image_rgb, blobs, stride, window_size):
+def extract_patches_from_blobs(image_rgb, blobs, stride, window_size, enlarge_pixels=0):
 
     H, W, _ = image_rgb.shape
     patches = []
@@ -114,18 +114,19 @@ def extract_patches_from_blobs(image_rgb, blobs, stride, window_size):
         x_img = int(x_hm * stride)
         y_img = int(y_hm * stride)
 
-        x1 = max(0, x_img - window_size // 2)
-        y1 = max(0, y_img - window_size // 2)
+        x1 = max(0, x_img)
+        y1 = max(0, y_img)
         x2 = min(W, x1 + window_size)
         y2 = min(H, y1 + window_size)
 
         if x2 - x1 < window_size or y2 - y1 < window_size:
             continue 
 
-        patch = image_rgb[y1:y2, x1:x2]
+        patch = image_rgb[y1-enlarge_pixels:y2+enlarge_pixels, x1-enlarge_pixels:x2+enlarge_pixels]
         patches.append(patch)
 
     return patches
+
 def extract_features(patch, feature_list=None):
     """
     Extract selected features from a BGR patch.
