@@ -13,6 +13,12 @@ from scipy.stats import skew
 import itertools
 
 import cv2
+from skimage.feature import canny
+from skimage.transform import hough_ellipse
+from skimage.draw import ellipse_perimeter
+from sklearn.decomposition import PCA
+from skimage.feature import blob_log
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -22,6 +28,46 @@ from datetime import datetime
 from collections import defaultdict
 from sklearn.cluster import DBSCAN
 from sklearn.cluster import KMeans
+
+def f1_score_counts(y_true, y_pred, epsilon=1e-9):
+
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+    
+    true_positives = np.minimum(y_true, y_pred).sum(axis=0).astype(float)
+    predicted_positives = y_pred.sum(axis=0).astype(float)
+    actual_positives = y_true.sum(axis=0).astype(float)
+    
+    precision = true_positives / (predicted_positives + epsilon)
+    recall = true_positives / (actual_positives + epsilon)
+    
+    f1 = 2 * (precision * recall) / (precision + recall + epsilon)
+    
+    macro_f1 = np.mean(f1)
+    
+    return macro_f1, f1
+
+def find_mask(img_gray: np.ndarray, name: str) -> np.ndarray:
+    edges = canny(img_gray)
+    
+    if "White" in name or "Comtesse" in name:
+        result = hough_ellipse(edges, accuracy=20, threshold=4, min_size=4)
+        result.sort(order='accumulator')
+
+        best = list(result[-1])
+        yc, xc, a, b = (int(round(x)) for x in best[1:5])
+        orientation = best[5]
+
+        cy, cx = ellipse_perimeter(yc, xc, a, b, orientation)
+        edges = np.zeros(img_gray.shape)
+        edges[cy, cx] = 1
+        
+    kernel = np.ones((5,5))
+    edges = closing(edges, kernel)
+    mask = remove_small_holes(edges.astype(dtype=np.bool), area_threshold=500000)
+    mask = opening(mask)
+
+    return mask
 
 def linear_interpolation(contours: np.ndarray, n_samples: int = 80):
     N = len(contours)
@@ -195,6 +241,7 @@ def extract_features(patch, feature_list=None):
 
     return np.concatenate(features, axis=0)
 
+
 def extract_masked_features(image_bgr, mask, feature_list=None):
 
     features = []
@@ -254,5 +301,7 @@ def extract_masked_features(image_bgr, mask, feature_list=None):
             masked_filtered = filtered[mask > 0]
             gabor_features.extend([np.mean(masked_filtered), np.std(masked_filtered)])
         features.append(np.array(gabor_features, dtype=np.float32))
+
+
 
     return np.concatenate(features, axis=0)
