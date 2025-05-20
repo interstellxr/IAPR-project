@@ -108,7 +108,8 @@ def sliding_window_compare(image_rgb, reference_histograms, window_size=64, stri
                 
             heatmap[y // stride, x // stride] = similarity
 
-    return heatmap
+    return heatmap, patch_hist
+
 def sliding_window_classify_and_count(image_rgb, reference_histograms, reference_names, 
                                       window_size=64, stride=16, method='hist',
                                       similarity_threshold=0.7, cluster=False):
@@ -190,8 +191,10 @@ def extract_features(patch, feature_list=None):
 
     patch_gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
 
+    patch_hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
+
     if 'histogram' in feature_list:
-        patch_hist = cv2.calcHist([patch], [0, 1, 2], None, [16, 16, 16], [0, 256]*3)
+        patch_hist = cv2.calcHist([patch_hsv], [0, 1, 2], None, [16, 16, 16], [0, 256]*3)
         patch_hist = cv2.normalize(patch_hist, patch_hist).flatten().astype(np.float32)
         features.append(patch_hist)
 
@@ -252,8 +255,10 @@ def extract_masked_features(image_bgr, mask, feature_list=None):
     masked_gray = cv2.bitwise_and(image_gray, image_gray, mask=mask)
     masked_bgr = cv2.bitwise_and(image_bgr, image_bgr, mask=mask)
 
+    image_hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
+
     if 'histogram' in feature_list:
-        hist = cv2.calcHist([image_bgr], [0, 1, 2], mask, [16, 16, 16], [0, 256]*3)
+        hist = cv2.calcHist([image_hsv], [0, 1, 2], mask, [16, 16, 16], [0, 256]*3)
         hist = cv2.normalize(hist, hist).flatten().astype(np.float32)
         features.append(hist)
 
