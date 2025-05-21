@@ -29,6 +29,9 @@ from collections import defaultdict
 from sklearn.cluster import DBSCAN
 from sklearn.cluster import KMeans
 
+import pywt
+
+
 def f1_score_counts(y_true, y_pred, epsilon=1e-9):
 
     y_true = np.array(y_true)
@@ -187,14 +190,15 @@ def extract_features(patch, feature_list=None):
     """
     features = []
     if feature_list is None:
-        feature_list = ['histogram', 'lbp', 'glcm', 'hog', 'color_moments', 'gabor']
+        feature_list = ['histogram', 'lbp', 'glcm', 'hog', 'color_moments', 'gabor', 'wavelet']
 
     patch_gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
 
     patch_hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
+    patch_lab = cv2.cvtColor(patch, cv2.COLOR_BGR2Lab)
 
     if 'histogram' in feature_list:
-        patch_hist = cv2.calcHist([patch_hsv], [0, 1, 2], None, [16, 16, 16], [0, 256]*3)
+        patch_hist = cv2.calcHist([patch_lab], [0, 1, 2], None, [16, 16, 16], [0, 256]*3)
         patch_hist = cv2.normalize(patch_hist, patch_hist).flatten().astype(np.float32)
         features.append(patch_hist)
 
@@ -224,7 +228,7 @@ def extract_features(patch, feature_list=None):
     if 'color_moments' in feature_list:
         color_moments = []
         for i in range(3):  # BGR channels
-            channel = patch[:, :, i]
+            channel = patch_lab[:, :, i]
             mean = np.mean(channel)
             std = np.std(channel)
             skewness = skew(channel.reshape(-1))
@@ -242,6 +246,14 @@ def extract_features(patch, feature_list=None):
             gabor_features.extend([np.mean(filtered), np.std(filtered)])
         features.append(np.array(gabor_features, dtype=np.float32))
 
+    if 'wavelet' in feature_list:
+        coeffs = pywt.wavedec2(patch_gray, 'haar', level=2)
+        wavelet_features = []
+        for level in coeffs[1:]:
+            for arr in level:  # (LH, HL, HH)
+                wavelet_features.extend([np.mean(arr), np.std(arr)])
+        features.append(np.array(wavelet_features, dtype=np.float32))
+
     return np.concatenate(features, axis=0)
 
 
@@ -249,16 +261,17 @@ def extract_masked_features(image_bgr, mask, feature_list=None):
 
     features = []
     if feature_list is None:
-        feature_list = ['histogram', 'lbp', 'glcm', 'hog', 'color_moments', 'gabor']
+        feature_list = ['histogram', 'lbp', 'glcm', 'hog', 'color_moments', 'gabor', 'wavelet']
 
     image_gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
     masked_gray = cv2.bitwise_and(image_gray, image_gray, mask=mask)
     masked_bgr = cv2.bitwise_and(image_bgr, image_bgr, mask=mask)
 
     image_hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
+    image_lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2Lab)
 
     if 'histogram' in feature_list:
-        hist = cv2.calcHist([image_hsv], [0, 1, 2], mask, [16, 16, 16], [0, 256]*3)
+        hist = cv2.calcHist([image_lab], [0, 1, 2], mask, [16, 16, 16], [0, 256]*3)
         hist = cv2.normalize(hist, hist).flatten().astype(np.float32)
         features.append(hist)
 
@@ -306,6 +319,14 @@ def extract_masked_features(image_bgr, mask, feature_list=None):
             masked_filtered = filtered[mask > 0]
             gabor_features.extend([np.mean(masked_filtered), np.std(masked_filtered)])
         features.append(np.array(gabor_features, dtype=np.float32))
+
+    if 'wavelet' in feature_list:
+        coeffs = pywt.wavedec2(masked_gray, 'haar', level=2)
+        wavelet_features = []
+        for level in coeffs[1:]:
+            for arr in level:  # (LH, HL, HH)
+                wavelet_features.extend([np.mean(arr), np.std(arr)])
+        features.append(np.array(wavelet_features, dtype=np.float32))
 
 
 

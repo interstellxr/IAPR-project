@@ -12,6 +12,8 @@ from sklearn.cluster import DBSCAN
 from sklearn.cluster import KMeans
 import pandas as pd
 
+from sklearn.preprocessing import StandardScaler
+
 def compute_reference_features(ref_images_rgb: list, ref_images_gray: list, ref_image_names: list, features: list):
     masks = []
     for name, image in zip(ref_image_names, ref_images_gray):
@@ -75,14 +77,18 @@ def compute_reference_features(ref_images_rgb: list, ref_images_gray: list, ref_
 def pca_on_reference_features(reference_feature_vectors: list, pca_percentile: float):
 
     ## Standardize the features
-    reference_feature_vectors = [np.array(features) for features in reference_feature_vectors]
+    patch_counts = [len(patches) for patches in reference_feature_vectors]
+    flat_features = np.vstack(reference_feature_vectors) 
+
+    # Standardize the features
+    scaler = StandardScaler()
+    standardized_features = scaler.fit_transform(flat_features)
 
     ## PCA on reference features
     pca = PCA(n_components=pca_percentile)
-    feature_array = np.vstack(reference_feature_vectors)
-    new_array = pca.fit_transform(feature_array)
-
-    patch_counts = [len(patches) for patches in reference_feature_vectors]
+    # feature_array = np.vstack(reference_feature_vectors)
+    # new_array = pca.fit_transform(feature_array)
+    new_array = pca.fit_transform(standardized_features)
 
     reduced_feature_vectors = []
     start = 0
@@ -91,7 +97,7 @@ def pca_on_reference_features(reference_feature_vectors: list, pca_percentile: f
         reduced_feature_vectors.append(new_array[start:end])
         start = end
 
-    return reduced_feature_vectors, pca
+    return reduced_feature_vectors, pca, scaler
 
 def compute_reference_histograms(ref_images_rgb: list, masks: list):
 
@@ -195,12 +201,16 @@ def extract_patch_features(train_images_rgb: list, blobs: list, step_size: int, 
 
     return patch_features, patch_image_indices
 
-def pca_on_patch_features(patch_features: list, pca: PCA):
+def pca_on_patch_features(patch_features: list, pca: PCA, scaler: StandardScaler):
+
+    ## Standardize the features
+    patch_counts = [len(patches) for patches in patch_features]
+    flat_features = np.vstack(patch_features)
+    standardized_features = scaler.transform(flat_features)
 
     ## PCA on patch features
-    patch_feature_array = np.vstack(patch_features)
-    patch_array = pca.transform(patch_feature_array)
-    patch_counts = [len(patches) for patches in patch_features]
+    # patch_feature_array = np.vstack(patch_features)
+    patch_array = pca.transform(standardized_features)
 
     reduced_features = []
     start = 0
@@ -298,15 +308,14 @@ def ChocoDetectorv2(ref_images_rgb: list, ref_images_gray: list, ref_image_names
 
     reference_array = np.vstack(reference_features)
 
-    reduced_reference_features, pca = pca_on_reference_features(reference_features, pca_percentile)
+    reduced_reference_features, pca, scaler = pca_on_reference_features(reference_features, pca_percentile)
     reduced_reference_array = np.vstack(reduced_reference_features)
-
 
     blobs, patch_histograms = sliding_window(rgb_images, reference_histograms, window_size=window_size, step_size=step_size, blob_percentile=blob_percentile)
 
     patch_features, patch_image_indices = extract_patch_features(rgb_images, blobs, step_size=step_size, window_size=window_size, features=features, min_size=min_size)
 
-    reduced_patch_features = pca_on_patch_features(patch_features, pca)
+    reduced_patch_features = pca_on_patch_features(patch_features, pca, scaler)
     reduced_patch_array = np.vstack(reduced_patch_features)
 
     df_pred = classify_patches(reduced_reference_array, reduced_patch_array, bbox_coords, patch_image_indices, ood_percentile=95, patch_features=patch_features, train_image_names=train_names, df_gt=df_gt)
