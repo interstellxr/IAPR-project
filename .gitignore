@@ -3,6 +3,7 @@
 
 # My changes / additions (ignoring project data)
 /project/chocolate-recognition-classic/*
+*.zip
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
